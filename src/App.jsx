@@ -1,6 +1,6 @@
 const uuidV1 = require('uuid/v1');
 import React, {Component} from 'react';
-import MessageList from './MessageList.jsx';
+import Messagelist from './Messagelist.jsx';
 import ChatBar from './ChatBar.jsx';
 import User from './Models/User.js';
 import Message from './Models/Message.js';
@@ -101,7 +101,7 @@ class App extends Component {
             <p>{this.state.onlineUserCount} User(s) Online</p>
           </div>
         </nav>
-        <MessageList messages={this.state.messages} />
+        <Messagelist messages={this.state.messages} />
         <ChatBar user={this.state.currentUser} addChatMessage={this.addChatMessage} changeUser={this.changeUser} />
       </div>
     )
