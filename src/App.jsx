@@ -1,63 +1,93 @@
+const uuidV1 = require('uuid/v1');
 import React, {Component} from 'react';
-import Messagelist from './Messagelist.jsx';
+import MessageList from './MessageList.jsx';
 import ChatBar from './ChatBar.jsx';
-
+import User from './Models/User.js';
+import Message from './Models/Message.js';
+import Notification from './Models/Notification.js';
 
 class App extends Component {
+
   constructor(props) {
     super(props);
 
     this.state = {
-      currentUser: [{name: "Bob"}],
-      messages: [
-        {
-          id: 1,
-          username: "Bob",
-          content: "Has anyone seen my marbles?",
-        },
-        {
-          id: 2,
-          username: "Anonymous",
-          content: "No, I think you lost them. You lost your marbles Bob. You lost them for good."
-        }
-      ]
+      currentUser: new User(""),
+      messages: [],
+      onlineUserCount: 0
+    };
+
+    this.addChatMessage = this.addChatMessage.bind(this);
+    this.changeUser = this.changeUser.bind(this);
+  };
+
+  addChatMessage(event) {
+    if (event.key === 'Enter') {
+      const newChatMessage = {
+        key: uuidV1(),
+        user: this.state.currentUser,
+        content: event.target.value,
+        type: "postMessage"
+      }
+      this.socket.send(JSON.stringify(newChatMessage));
+      event.target.value = "";
     }
-  }
+  };
 
-  handleChange(content) {
-    let user = this.state.currentUser;
-    let newUser = user.concat({
-      name: content
-      })
-      this.setState({currentUser: newUser })
-      console.log(newUser)
-  }
-
-  onNewPost(content) {
-    // console.log(content);
-    const messages = this.state.messages;
-    const newPost = messages.concat({
-      id: messages.length + 1,
-      username: "Bob",
-      content: content
+  changeUser(event) {
+    const timeStamp = Date.now();
+    const updatedUser = this.state.currentUser.withNewName(event.target.value);
+    this.setState({
+      currentUser: updatedUser
     });
-    this.ws.send(JSON.stringify(newPost));
+    if(this.state.currentUser === ""){
+        this.state.currentUser = "No one"
+      }
+    const newUserName = {
+      type: "postNotification",
+      user: updatedUser,
+      notification: `${this.state.currentUser.name} has changed their name to ${updatedUser.name}.`,
+      key: timeStamp
+    }
+    this.socket.send(JSON.stringify(newUserName));
   }
-
-
 
   componentDidMount() {
-    this.ws = new WebSocket ('ws://localhost:3001/');
-    let me = this;
-    this.ws.onmessage = function (evt) {
-      if (evt.data) {
-        let show = JSON.parse(evt.data);
-        me.setState({messages: show})
+    this.socket = new WebSocket('ws://localhost:3001');
+    this.socket.onopen = () => {
+
+    };
+
+    this.socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      switch(data.type) {
+        case "incomingMessage":
+          const incomingMessage = new Message(
+            data.user,
+            data.content,
+            data.uniqueKey
+          );
+          this.setState({ messages: this.state.messages.concat(incomingMessage) });
+        break;
+        case "incomingNotification":
+          const incomingNotification = new Notification(
+            data.user,
+            data.notification,
+            data.uniqueKey
+          );
+          this.setState({ messages: this.state.messages.concat(incomingNotification) });
+        break;
+        case "onlineUsers":
+          this.setState({ onlineUserCount: parseInt(data.value) });
+          break;
+        case "colourAssignment":
+          this.setState({ currentUser: this.state.currentUser.withNewColour(data.colour) });
+          break;
+        default:
+        throw new Error(`Unknown event type ${data.type}`);
       }
     }
-
-  }
-
+  };
 
 
 
@@ -66,16 +96,17 @@ class App extends Component {
     return (
       <div>
         <nav className="navbar">
-          <a href="/" className="navbar-brand">Chatty</a>
+         <a href="/" className="navbar-brand">Chatterbox</a>
+          <div className="online-users">
+            <p>{this.state.onlineUserCount} User(s) Online</p>
+          </div>
         </nav>
-        <Messagelist messages={ this.state.messages } />
-        <ChatBar handleChange={this.handleChange.bind(this)} onNewPost={ this.onNewPost.bind(this) } currentUser={ this.state.currentUser }   />
+        <MessageList messages={this.state.messages} />
+        <ChatBar user={this.state.currentUser} addChatMessage={this.addChatMessage} changeUser={this.changeUser} />
       </div>
-    );
+    )
   }
 }
-
-
 
 
 export default App;
