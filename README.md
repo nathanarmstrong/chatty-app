@@ -21,6 +21,14 @@ open http://localhost:3000
 
 ```
 
+run the chatty_server on another terminal, go into chatty_server folder in terminal and run...
+
+```
+npm install if needed 
+node server.js
+
+```
+
 ### Dependencies
 
 * React
